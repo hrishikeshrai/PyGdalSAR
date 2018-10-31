@@ -12,7 +12,7 @@ Correct Time Series data from Gacos atmospheric models. 1) convert .ztd files to
 3) correct data
 
 Usage: correct_ts_from_gacos.py [--cube=<path>] [--path=<path>] [--list_images=<path>] [--imref=<value>] [--crop=<values>] \
-[--gacos2data=<value>] [--proj=<value>] [--ref=<values>] [--zone=<values>] [--plot=<yes/no>] [--load=<True/False>]
+[--gacos2data=<value>] [--proj=<value>] [--ref=<values>] [--zone=<values>] [--plot=<yes/no>] [--load=<yes/no>]
 
 correct_ts_from_gacos.py -h | --help
 
@@ -26,9 +26,9 @@ Options:
 --ref  VALUES       Column and line number for referencing. If None then estimate the best linear relationship between model and data [default: None]. 
 --zone VALUES       Crop option for ramp estimation [default: 0,ncol,0,nlign]
 --proj VALUE        EPSG for projection GACOS map [default: 4326]
---gacos2data        Scaling value between gacos data (m) and desired output (e.g data in mm) [default: 1000.]
---plot              Display results [default: yes]   
---load              If False, do not load data again and directly read cube_gacos [default: True]   
+--gacos2data  VALUE Scaling value between gacos data (m) and desired output (e.g data in mm) [default: 1000.]
+--plot  YES/NO      Display results [default: yes]   
+--load YES/no       If no, do not load data again and directly read cube_gacos [default: True]   
 """
 
 import gdal
@@ -42,8 +42,7 @@ import matplotlib.pyplot as plt
 from numpy.lib.stride_tricks import as_strided
 import subprocess
 np.warnings.filterwarnings('ignore')
-
-from nsbas import docopt
+import docopt
 
 # read arguments
 arguments = docopt.docopt(__doc__)
@@ -85,7 +84,7 @@ else:
     gacos2data = float(arguments["--gacos2data"])
 
 if arguments["--load"] ==  None:
-    load = True
+    load = 'yes'
 else:
     load = arguments["--load"] 
 
@@ -108,6 +107,7 @@ N = len(dates)
 
 # Choose plot option
 cmap = cm.gist_rainbow_r
+# cmap = cm.jet
 cmap.set_bad('white')
 
 # Choose referencing between 'pixel' or 'ramp'
@@ -123,11 +123,12 @@ cube = as_strided(cubei[:nlign*ncol*N])
 print 'Number of line in the cube: ', cube.shape
 maps = cube.reshape((nlign,ncol,N))
 
-if load == True:
+
+if load == 'yes':
     gacos = np.zeros((nlign,ncol,N))
     for i in xrange((N)):
 
-        print 'Read ',idates[i]
+        print 'Read ',idates[i], i
         infile = path+'{}.ztd'.format(int(idates[i]))
         rsc = path+'{}.ztd.rsc'.format(int(idates[i]))
         temp1 = path+'{}_temp1.tif'.format(int(idates[i]))
@@ -208,7 +209,9 @@ if load == True:
         gacos[:,:,l] = gacos[:,:,l] - cst
 
     # Plot
+    nfigure = 0
     fig = plt.figure(0,figsize=(14,10))
+    nfigure += 1
     fig.subplots_adjust(wspace=0.001)
     vmax = np.nanpercentile(gacos[:,:,-1],99)
     vmin = np.nanpercentile(gacos[:,:,-1],1)
@@ -229,11 +232,12 @@ if load == True:
     # save new cube
     fid = open('cube_gacos', 'wb')
     gacos.flatten().astype('float32').tofile(fid)
+    fid.close()
 
 # # load gacos cube
 gcubei = np.fromfile('cube_gacos',dtype=np.float32)
-# gcube = as_strided(gcubei[:nlign*ncol*N])
-gacos = gcubei.reshape((nlign,ncol,N))
+gcube = as_strided(gcubei[:nlign*ncol*N])
+gacos = gcube.reshape((nlign,ncol,N))
 
 # Apply correction
 maps_flat = np.zeros((nlign,ncol,N))
@@ -287,22 +291,26 @@ for i in xrange(1,N):
         vmax = np.nanpercentile(data,98)
         vmin = np.nanpercentile(data,2)
         # initiate figure depl
-        fig = plt.figure(1,figsize=(10,5))
+        fig = plt.figure(nfigure,figsize=(10,5))
+        nfigure += 1
         ax = fig.add_subplot(1,3,1)
         cax = ax.imshow(data,cmap=cmap,vmax=vmax,vmin=vmin)
         ax.set_title('Data {}'.format(idates[i]),fontsize=6)
+        cbar = fig.colorbar(cax,orientation='horizontal')
 
         # initiate figure depl
         ax = fig.add_subplot(1,3,2)
         cax = ax.imshow(data-data_flat,cmap=cmap,vmax=vmax,vmin=vmin)
         ax.set_title('Model {}'.format(idates[i]),fontsize=6)
+        cbar = fig.colorbar(cax,orientation='horizontal')
 
         # initiate figure depl
         ax = fig.add_subplot(1,3,3)
         cax = ax.imshow(data_flat,cmap=cmap,vmax=vmax,vmin=vmin)
         ax.set_title('Correct Data {}'.format(idates[i]),fontsize=6)
-        fig.colorbar(cax, orientation='vertical',aspect=10)
-        plt.show()
+        cbar = fig.colorbar(cax,orientation='horizontal')
+        fig.savefig('{}-gacos-cor.eps'.format(idates[i]), format='EPS',dpi=150)
+        # plt.show()
         # sys.exit()
 
 # save new cube
