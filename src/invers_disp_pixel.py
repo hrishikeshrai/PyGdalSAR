@@ -714,8 +714,10 @@ for jj in xrange((Npix)):
 
         # forward model in original order
         mdisp[k] = np.dot(G,m)
-        demerr[k] =  np.dot(G[:,Mbasis:],m[Mbasis:])
-        vecteur[k] =  np.dot(G[:,Mbasis:],m[Mbasis:])
+        if dem =='yes':
+            demerr[k] =  np.dot(G[:,indexdem],m[indexdem])
+        if vect != None:
+            vecteur[k] =  np.dot(G[:,indexvect],m[indexvect])
 
         print
         print 'computation time:', time.time() - t
@@ -746,7 +748,6 @@ for jj in xrange((Npix)):
     # plot data and model minus dem error
     ax.plot(x,disp-demerr,'o',label='TS {}: lign: {}-{}, column: {}-{}'.format(jj,i-w,i+w,j-w,j+w))
     ax.errorbar(x,disp-demerr,yerr = sigmad, ecolor='blue',fmt='none', alpha=0.5)
-    # ax.plot(x,mdisp-demerr,'o', label='model',color='red', alpha=0.5)
 
     # plot data and model minus dem error and linear term
     if inter=='yes':
@@ -774,7 +775,7 @@ for jj in xrange((Npix)):
 
     if vect!=None:
         disp_vect[k] =disp_vect[k] + np.dot(G[:,indexvect],m[indexvect])
-        ax2.plot(x,disp-vecteur-demerr,'o',label='data -seasonal')
+        ax2.plot(x,disp-disp_vect-demerr,'o',label='data -seasonal')
 #        ax2.plot(x,vecteur,'o',color='red',alpha=0.5,label='model -seasonal')
         ax2.errorbar(x,disp-disp_vect-demerr,yerr = sigmad, ecolor='blue',fmt='none', alpha=0.3)
 
